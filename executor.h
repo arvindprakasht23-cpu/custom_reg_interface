@@ -3,4 +3,4 @@
 
 void executor_poll(void);
 
-#endif
+#endif /* EXECUTOR_H */
