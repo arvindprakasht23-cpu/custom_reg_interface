@@ -1,6 +1,6 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-void parse_and_issue(char *cmd);
+void parse_and_store(char *cmd);
 
-#endif
+#endif /* PARSER_H */
