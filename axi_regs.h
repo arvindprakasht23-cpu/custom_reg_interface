@@ -5,37 +5,34 @@
 #include "xil_io.h"
 #include "xil_types.h"
 
-#define CMD_BASE_ADDR   XPAR_MY_REG_IP_0_S00_AXI_BASEADDR
+/* Replace with your actual macro from xparameters.h if different */
+#define REG_BASE_ADDR  XPAR_CUSTOM_REG_0_BASEADDR
 
-/* ---------------- Operands (0x00 – 0x1F) ---------------- */
-/* 8 × 32-bit */
-#define REG_OPERAND(n)   (CMD_BASE_ADDR + (0x00 + ((n) * 4)))
-#define MAX_OPERANDS     8
+/* ---------------- REGISTER MAP ---------------- */
 
-/* ---------------- Control Bytes ---------------- */
-/* 0x20–0x23 (inside one 32-bit register) */
-#define REG_OPCODE_ADDR   (CMD_BASE_ADDR + 0x20)   // 8-bit
-#define REG_COMMAND_ADDR  (CMD_BASE_ADDR + 0x21)   // 8-bit
-#define REG_STATUS_ADDR   (CMD_BASE_ADDR + 0x22)   // 16-bit (0x22–0x23)
+/* Operands: 0x00 – 0x1F (32 bytes = 8 x 32-bit words) */
+#define REG_OPERAND(i)   (0x00 + ((i) * 4))
 
-/* ---------------- Results (0x24 – 0x43) ---------------- */
-/* 8 × 32-bit */
-#define REG_RESULT(n)     (CMD_BASE_ADDR + (0x24 + ((n) * 4)))
-#define MAX_RESULTS       8
+/* Opcode: 1 byte at 0x20 */
+#define REG_OPCODE       0x20
 
-/* Command values */
-#define CMD_IDLE   0
-#define CMD_START  1
-#define CMD_BUSY   2
+/* Command: 1 byte at 0x21 */
+#define REG_COMMAND      0x21
 
-/* Access macros */
-#define WRITE32(addr, val)  Xil_Out32((addr), (u32)(val))
-#define READ32(addr)        Xil_In32((addr))
+/* StatusCode: 2 bytes at 0x22–0x23 */
+#define REG_STATUS       0x22
 
-#define WRITE8(addr, val)   Xil_Out8((addr), (u8)(val))
-#define READ8(addr)         Xil_In8((addr))
+/* Result registers: 0x24 – 0x43 (32 bytes = 8 x 32-bit words) */
+#define REG_RESULT(i)    (0x24 + ((i) * 4))
 
-#define WRITE16(addr, val)  Xil_Out16((addr), (u16)(val))
-#define READ16(addr)        Xil_In16((addr))
+/* ---------------- READ/WRITE MACROS ---------------- */
 
-#endif
+#define WRITE8(offset, value)  Xil_Out8(REG_BASE_ADDR + (offset), (u8)(value))
+#define WRITE16(offset, value) Xil_Out16(REG_BASE_ADDR + (offset), (u16)(value))
+#define WRITE32(offset, value) Xil_Out32(REG_BASE_ADDR + (offset), (u32)(value))
+
+#define READ8(offset)  Xil_In8(REG_BASE_ADDR + (offset))
+#define READ16(offset) Xil_In16(REG_BASE_ADDR + (offset))
+#define READ32(offset) Xil_In32(REG_BASE_ADDR + (offset))
+
+#endif /* AXI_REGS_H */
