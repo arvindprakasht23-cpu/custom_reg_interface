@@ -4,25 +4,19 @@
 
 void executor_poll(void)
 {
-    u8 command = READ8(REG_COMMAND_ADDR);
-
-    if (command == CMD_START)
+    if (READ8(REG_COMMAND) == 1)   // START
     {
-        /* Mark busy */
-        WRITE8(REG_COMMAND_ADDR, CMD_BUSY);
+        WRITE8(REG_COMMAND, 2);   // BUSY
 
-        u8 opcode = READ8(REG_OPCODE_ADDR);
-        u16 status = 0xFFFF;
+        u8 opcode = READ8(REG_OPCODE);
+        u16 status = TI_AFE_RET_EXEC_FAIL; // Default to fail
 
         if (opcode < API_TABLE_SIZE && api_table[opcode])
         {
             status = api_table[opcode]();
         }
 
-        /* Write status */
-        WRITE16(REG_STATUS_ADDR, status);
-
-        /* Back to idle */
-        WRITE8(REG_COMMAND_ADDR, CMD_IDLE);
+        WRITE16(REG_STATUS, status);
+        WRITE8(REG_COMMAND, 0);   // DONE → back to idle
     }
 }
