@@ -1,69 +1,41 @@
 #include "api.h"
 #include "axi_regs.h"
+#include "afe_drivers.h"
 
-/* Dummy memory to act as the hardware for testing */
-#define MEM_SIZE 256
-static u32 target_memory[MEM_SIZE] = {0};
-
-/* WRITE: Operand[0] = address, Operand[1] = 32-bit value */
-u16 api_write(void)
-{
-    u32 addr = READ32(REG_OPERAND(0));
-    u32 val  = READ32(REG_OPERAND(1));
-
-    if (addr >= MEM_SIZE) return TI_AFE_RET_EXEC_FAIL;
-
-    target_memory[addr] = val;
-    return TI_AFE_RET_EXEC_PASS;
+u16 api_afeSpiRawWrite_wrapper(volatile u8 *operands) {
+    return (u16)afeSpiRawWrite(operands[0], (operands[1] << 8) | operands[2], operands[3]);
 }
 
-/* READ: Operand[0] = address -> Result[0] = 32-bit value */
-u16 api_read(void)
-{
-    u32 addr = READ32(REG_OPERAND(0));
-
-    if (addr >= MEM_SIZE) return TI_AFE_RET_EXEC_FAIL;
-
-    u32 val = target_memory[addr];
-    WRITE32(REG_RESULT(0), val);
-
-    return TI_AFE_RET_EXEC_PASS;
+u16 api_afeSpiRawRead_wrapper(volatile u8 *operands) {
+    return (u16)afeSpiRawRead(operands[0], (operands[1] << 8) | operands[2], (u8 *)HW_RESULT_BASE);
 }
 
-/* ARRAY_WRITE: Operand[0] = addr, Operand[1] = len, Operand[2..7] = 32-bit data */
-u16 api_array_write(void)
-{
-    u32 addr = READ32(REG_OPERAND(0));
-    u32 len  = READ32(REG_OPERAND(1));
-
-    if ((addr + len > MEM_SIZE) || (len > 6)) return TI_AFE_RET_EXEC_FAIL;
-
-    for (u32 i = 0; i < len; i++) {
-        target_memory[addr + i] = READ32(REG_OPERAND(2 + i));
-    }
-
-    return TI_AFE_RET_EXEC_PASS;
+u16 api_afeSpiBurstWrite_wrapper(volatile u8 *operands) {
+    u16 size = (operands[3] << 8) | operands[4];
+    return (u16)afeSpiBurstWrite(operands[0], (operands[1] << 8) | operands[2], (u8 *)&operands[5], size);
 }
 
-/* ARRAY_READ: Operand[0] = addr, Operand[1] = len -> Result[0..7] = 32-bit data */
-u16 api_array_read(void)
-{
-    u32 addr = READ32(REG_OPERAND(0));
-    u32 len  = READ32(REG_OPERAND(1));
-
-    if ((addr + len > MEM_SIZE) || (len > 8)) return TI_AFE_RET_EXEC_FAIL;
-
-    for (u32 i = 0; i < len; i++) {
-        WRITE32(REG_RESULT(i), target_memory[addr + i]);
-    }
-
-    return TI_AFE_RET_EXEC_PASS;
+u16 api_afeSpiBurstRead_wrapper(volatile u8 *operands) {
+    u16 size = (operands[3] << 8) | operands[4];
+    return (u16)afeSpiBurstRead(operands[0], (operands[1] << 8) | operands[2], size, (u8 *)HW_RESULT_BASE);
 }
 
-/* Dispatch Table */
+u16 api_afeSpiRawWriteMulti_wrapper(volatile u8 *operands) {
+    return (u16)afeSpiRawWriteMulti(operands[0], (operands[1] << 8) | operands[2], operands[3]);
+}
+
+u16 api_afeSpiRawReadMulti_wrapper(volatile u8 *operands) {
+    return (u16)afeSpiRawReadMulti(operands[0], (operands[1] << 8) | operands[2], (u8 *)HW_RESULT_BASE);
+}
+
+u16 api_afeSpiBurstWriteMulti_wrapper(volatile u8 *operands) {
+    u16 size = (operands[3] << 8) | operands[4];
+    return (u16)afeSpiBurstWriteMulti(operands[0], (operands[1] << 8) | operands[2], (u8 *)&operands[5], size);
+}
+
 api_func_ptr api_table[API_TABLE_SIZE] = {
-    api_write,
-    api_read,
-    api_array_write,
-    api_array_read
+    api_afeSpiRawWrite_wrapper, api_afeSpiRawRead_wrapper,
+    api_afeSpiBurstWrite_wrapper, api_afeSpiBurstRead_wrapper,
+    api_afeSpiRawWriteMulti_wrapper, api_afeSpiRawReadMulti_wrapper,
+    api_afeSpiBurstWriteMulti_wrapper
 };
