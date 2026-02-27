@@ -1,89 +1,48 @@
 #include <string.h>
+#include <stdlib.h>
 #include "parser.h"
 #include "axi_regs.h"
-#include "api.h"
+#include "../corelogic/api.h"
 
-/* Custom hex parser to handle hex strings (e.g., "0x1A" or "1A") */
-static u32 parse_hex(const char *s)
-{
-    u32 val = 0;
+void parse_and_store(char *input) {
+    if (READ_CMD() != 0) return;
+    char *cmd = strtok(input, "(");
+    if (!cmd) return;
+    char *arg_string = strtok(NULL, ")");
+    if (!arg_string) return;
 
-    if (!s) return 0;
+    char *token = strtok(arg_string, ",");
+    uint32_t offset = 0;
 
-    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
-        s += 2;
+    while (token != NULL) {
+        size_t len = strlen(token);
+        uint32_t val = (uint32_t)strtoul(token, NULL, 16);
 
-    while (*s)
-    {
-        val <<= 4;
-
-        if (*s >= '0' && *s <= '9')
-            val |= (*s - '0');
-        else if (*s >= 'A' && *s <= 'F')
-            val |= (*s - 'A' + 10);
-        else if (*s >= 'a' && *s <= 'f')
-            val |= (*s - 'a' + 10);
-        else
-            break;
-
-        s++;
-    }
-
-    return val;
-}
-
-void parse_and_store(char *cmd)
-{
-    /* Block new commands if currently busy */
-    if (READ8(REG_COMMAND) != 0) return;
-
-    char *tok = strtok(cmd, " ");
-    if (!tok) return;
-
-    if (!strcmp(tok, "WRITE"))
-    {
-        WRITE8(REG_OPCODE, OPCODE_WRITE);
-        char *addr = strtok(NULL, " ");
-        char *val = strtok(NULL, " ");
-        if (addr) WRITE32(REG_OPERAND(0), parse_hex(addr));
-        if (val)  WRITE32(REG_OPERAND(1), parse_hex(val));
-    }
-    else if (!strcmp(tok, "READ"))
-    {
-        WRITE8(REG_OPCODE, OPCODE_READ);
-        char *addr = strtok(NULL, " ");
-        if (addr) WRITE32(REG_OPERAND(0), parse_hex(addr));
-    }
-    else if (!strcmp(tok, "ARRAY_WRITE"))
-    {
-        WRITE8(REG_OPCODE, OPCODE_ARRAY_WRITE);
-        char *addr = strtok(NULL, " ");
-        char *len = strtok(NULL, " ");
-        if (addr && len) 
-        {
-            WRITE32(REG_OPERAND(0), parse_hex(addr));
-            u32 length = parse_hex(len);
-            
-            /* Limit length to 6 to fit in Operands[2..7] */
-            if (length > 6) length = 6; 
-            WRITE32(REG_OPERAND(1), length);
-            
-            for (u32 i = 0; i < length; i++) {
-                char *data = strtok(NULL, " ");
-                if (data) WRITE32(REG_OPERAND(2 + i), parse_hex(data));
-                else break;
-            }
+        if (len <= 2) { // 8-bit
+            HW_OPERAND_BASE[offset++] = (u8)val;
+        } 
+        else if (len <= 4) { // 16-bit (Little Endian: LSB First)
+            HW_OPERAND_BASE[offset++] = (u8)(val & 0xFF);        // LSB
+            HW_OPERAND_BASE[offset++] = (u8)((val >> 8) & 0xFF); // MSB
+        } 
+        else { // 32-bit (Little Endian: LSB First)
+            HW_OPERAND_BASE[offset++] = (u8)(val & 0xFF);
+            HW_OPERAND_BASE[offset++] = (u8)((val >> 8) & 0xFF);
+            HW_OPERAND_BASE[offset++] = (u8)((val >> 16) & 0xFF);
+            HW_OPERAND_BASE[offset++] = (u8)((val >> 24) & 0xFF);
         }
-    }
-    else if (!strcmp(tok, "ARRAY_READ"))
-    {
-        WRITE8(REG_OPCODE, OPCODE_ARRAY_READ);
-        char *addr = strtok(NULL, " ");
-        char *len = strtok(NULL, " ");
-        if (addr) WRITE32(REG_OPERAND(0), parse_hex(addr));
-        if (len)  WRITE32(REG_OPERAND(1), parse_hex(len));
+        token = strtok(NULL, ",");
     }
 
-    /* Start execution */
-    WRITE8(REG_COMMAND, 1);
+    uint8_t opcode = 0xFF;
+    if (strcmp(cmd, "spiRawWrite") == 0)             opcode = OPCODE_RAW_WRITE;
+    else if (strcmp(cmd, "spiRawRead") == 0)          opcode = OPCODE_RAW_READ;
+    else if (strcmp(cmd, "spiBurstWrite") == 0)       opcode = OPCODE_BURST_WRITE;
+    else if (strcmp(cmd, "spiBurstRead") == 0)        opcode = OPCODE_BURST_READ;
+    else if (strcmp(cmd, "spiRawWriteMulti") == 0)    opcode = OPCODE_RAW_WRITE_MULTI;
+    else if (strcmp(cmd, "spiRawReadMulti") == 0)     opcode = OPCODE_RAW_READ_MULTI;
+    else if (strcmp(cmd, "spiBurstWriteMulti") == 0)  opcode = OPCODE_BURST_WRITE_MULTI;
+
+    WRITE_OPCODE(opcode);
+    if (opcode != 0xFF) WRITE_CMD(1);
 }
