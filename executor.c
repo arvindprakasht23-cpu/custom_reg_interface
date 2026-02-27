@@ -2,21 +2,15 @@
 #include "axi_regs.h"
 #include "api.h"
 
-void executor_poll(void)
-{
-    if (READ8(REG_COMMAND) == 1)   // START
-    {
-        WRITE8(REG_COMMAND, 2);   // BUSY
-
-        u8 opcode = READ8(REG_OPCODE);
-        u16 status = TI_AFE_RET_EXEC_FAIL; // Default to fail
-
-        if (opcode < API_TABLE_SIZE && api_table[opcode])
-        {
-            status = api_table[opcode]();
+void executor_poll(void) {
+    if (READ_CMD() == 1) {
+        WRITE_CMD(2);
+        u8 opcode = READ_OPCODE();
+        u16 status = TI_AFE_RET_EXEC_FAIL;
+        if (opcode < API_TABLE_SIZE && api_table[opcode]) {
+            status = api_table[opcode](HW_OPERAND_BASE);
         }
-
-        WRITE16(REG_STATUS, status);
-        WRITE8(REG_COMMAND, 0);   // DONE → back to idle
+        WRITE_STATUS(status);
+        WRITE_CMD(0);
     }
 }
